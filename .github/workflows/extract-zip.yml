@@ -19,7 +19,7 @@ jobs:
 
       - name: Extract AstroConsu ZIP
         run: |
-          unzip -o astroconsu-v17-cosmic-pro.zip -d extracted
+          unzip -o astroconsu-v17.2-buildfix.zip -d extracted
 
           cp -a extracted/. .
 
@@ -27,7 +27,7 @@ jobs:
 
       - name: Remove ZIP
         run: |
-          rm -f astroconsu-v17-cosmic-pro.zip
+          rm -f astroconsu-v17.2-buildfix.zip
 
       - name: Commit AstroConsu V17
         run: |
