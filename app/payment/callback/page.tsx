@@ -13,6 +13,7 @@ export default function PaymentCallbackPage() {
     let active = true;
 
     async function check() {
+      if (!consultationId) return;
       const res = await fetch(`/api/payments/status?consultationId=${encodeURIComponent(consultationId)}`, { cache: "no-store" });
       const json = await res.json();
       if (!active) return;
