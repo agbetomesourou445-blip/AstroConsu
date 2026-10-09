@@ -19,7 +19,9 @@ function readLocale(): Locale {
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${COOKIE_NAME}=`))
     ?.split("=")[1];
-  return value && isLocale(decodeURIComponent(value)) ? decodeURIComponent(value) : "fr";
+  if (!value) return "fr";
+  const decoded = decodeURIComponent(value);
+  return isLocale(decoded) ? decoded : "fr";
 }
 
 export function LanguageSelector() {
