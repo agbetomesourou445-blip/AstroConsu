@@ -1,4 +1,4 @@
-import { LanguageSelector } from "@/components/LanguageSelector";
+ { LanguageSelector } from "@/components/LanguageSelector";
 
 export const metadata = {
   title: "AstroConsu — Langue",
