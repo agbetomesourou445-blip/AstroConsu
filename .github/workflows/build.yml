@@ -1,0 +1,46 @@
+name: Build AstroConsu
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/astroconsu
+      OPENAI_API_KEY: test-key
+      OPENAI_MODEL: gpt-4o-mini
+      AUTH_SECRET: test-auth-secret-012345678901234567890123456789
+      FEDAPAY_SECRET_KEY: test-secret
+      FEDAPAY_PUBLIC_KEY: test-public
+      FEDAPAY_WEBHOOK_SECRET: test-webhook
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_WHATSAPP_URL: https://wa.me/message/PIQJ7XBLTNLWO1
+      NEXT_PUBLIC_TELEGRAM_URL: https://t.me/AstroConsuPR
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm install
+
+      - name: Prisma validate
+        run: npx prisma validate
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
