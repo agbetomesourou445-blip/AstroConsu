@@ -1,13 +1,14 @@
-name: Extract AstroConsu ZIP
+name: Extract AstroConsu V17.3
 
 on:
   workflow_dispatch:
 
 permissions:
   contents: write
+  workflows: write
 
 jobs:
-  extract-zip:
+  extract:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,20 +17,95 @@ jobs:
         with:
           token: ${{ secrets.GH_PAT }}
           persist-credentials: true
+          fetch-depth: 0
 
-      - name: Extract AstroConsu ZIP
+      - name: Verify ZIP
         run: |
-          unzip -o astroconsu-v17.3-buildfix.zip -d extracted
+          echo "=== ZIP disponibles ==="
+          ls -lah *.zip || true
 
-          cp -a extracted/. .
+          test -f astroconsu-v17.3-buildfix.zip
 
-          rm -rf extracted
-
-      - name: Remove ZIP
+      - name: Clean previous AstroConsu source
         run: |
+          echo "Suppression de l'ancien code..."
+
+          rm -rf app
+          rm -rf components
+          rm -rf lib
+          rm -rf prisma
+          rm -rf public
+          rm -rf tests
+
+          rm -f package.json
+          rm -f package-lock.json
+          rm -f tsconfig.json
+          rm -f next.config.ts
+          rm -f next.config.js
+          rm -f next-env.d.ts
+          rm -f middleware.ts
+          rm -f vitest.config.ts
+
+      - name: Extract V17.3 into temporary directory
+        run: |
+          rm -rf astroconsu-extracted
+          mkdir -p astroconsu-extracted
+
+          unzip -o astroconsu-v17.3-buildfix.zip \
+            -d astroconsu-extracted
+
+      - name: Install AstroConsu files
+        run: |
+          echo "Installation de V17.3..."
+
+          cp -a astroconsu-extracted/. .
+
+          rm -rf astroconsu-extracted
+
+      - name: Remove ZIP archives from repository
+        run: |
+          rm -f astroconsu-v17-cosmic-pro.zip
+          rm -f astroconsu-v17-typescript-fixed.zip
+          rm -f astroconsu-v17.1-final.zip
+          rm -f astroconsu-v17.2-buildfix.zip
           rm -f astroconsu-v17.3-buildfix.zip
 
-      - name: Commit AstroConsu V17
+      - name: Verify payment callback source
+        run: |
+          echo "=== Vérification payment/callback ==="
+
+          test -f app/payment/callback/page.tsx
+          test -f app/payment/callback/PaymentCallbackClient.tsx
+
+          echo ""
+          echo "=== page.tsx ==="
+          cat app/payment/callback/page.tsx
+
+          echo ""
+          echo "=== PaymentCallbackClient.tsx ==="
+          cat app/payment/callback/PaymentCallbackClient.tsx
+
+          echo ""
+          echo "=== Recherche de useSearchParams ==="
+
+          if grep -R "useSearchParams" app/payment/callback; then
+            echo "ERREUR: useSearchParams existe encore dans payment/callback"
+            exit 1
+          fi
+
+          echo "OK: aucun useSearchParams dans payment/callback."
+
+      - name: Verify project files
+        run: |
+          echo "=== package.json ==="
+          test -f package.json
+          cat package.json
+
+          echo ""
+          echo "=== Git status ==="
+          git status --short
+
+      - name: Commit AstroConsu V17.3
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -41,6 +117,8 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Extract AstroConsu V17"
+          git commit -m "Install AstroConsu V17.3 build fix"
 
+      - name: Push AstroConsu V17.3
+        run: |
           git push origin HEAD:main
