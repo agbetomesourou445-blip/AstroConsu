@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export default function PaymentCallbackClient() {
-  const [consultationId, setConsultationId] = useState<string | null>(null);
-  const [status, setStatus] = useState("Vérification du paiement...");
+type PaymentCallbackClientProps = {
+  consultationId: string | null;
+};
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setConsultationId(params.get("consultationId"));
-  }, []);
+export default function PaymentCallbackClient({
+  consultationId,
+}: PaymentCallbackClientProps) {
+  const [status, setStatus] = useState("Vérification du paiement...");
 
   useEffect(() => {
     if (!consultationId) {
@@ -18,15 +18,11 @@ export default function PaymentCallbackClient() {
       return;
     }
 
-    // On crée une constante locale après la vérification.
-    // TypeScript sait alors avec certitude qu'il s'agit d'une string.
-    const id = consultationId;
-
     let active = true;
 
     async function check() {
       const res = await fetch(
-        `/api/payments/status?consultationId=${encodeURIComponent(id)}`,
+        `/api/payments/status?consultationId=${encodeURIComponent(consultationId)}`,
         { cache: "no-store" }
       );
 
@@ -39,9 +35,7 @@ export default function PaymentCallbackClient() {
       if (!active) return;
 
       if (json.payment?.status === "SUCCESS") {
-        setStatus(
-          "Paiement confirmé. Votre consultation est maintenant payée."
-        );
+        setStatus("Paiement confirmé. Votre consultation est maintenant payée.");
       } else if (json.payment?.status === "FAILED") {
         setStatus("Le paiement n'a pas été confirmé.");
       } else {
@@ -57,27 +51,26 @@ export default function PaymentCallbackClient() {
       }
     });
 
-    const timer = window.setInterval(() => {
-      check().catch(() => undefined);
+    const timer = setInterval(() => {
+      check().catch(() => {
+        // Une nouvelle tentative sera effectuée automatiquement.
+      });
     }, 5000);
 
     return () => {
       active = false;
-      window.clearInterval(timer);
+      clearInterval(timer);
     };
   }, [consultationId]);
 
   return (
     <div className="page narrow">
       <span className="eyebrow">💳 RETOUR PAIEMENT</span>
-
       <h1>{status}</h1>
-
       <p>
         La validation définitive est basée sur la notification sécurisée du
         prestataire, pas uniquement sur les paramètres de l’URL.
       </p>
-
       <Link href="/dashboard" className="button primary">
         Retour à mon espace
       </Link>

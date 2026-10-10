@@ -1,19 +1,13 @@
-name: AstroConsu Build
+name: Build AstroConsu
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
-
-permissions:
-  contents: read
+    branches: ["main", "master"]
+  pull_request:
 
 jobs:
   build:
-    name: Typecheck and Build
     runs-on: ubuntu-latest
-
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/astroconsu
       OPENAI_API_KEY: test-key
@@ -26,31 +20,14 @@ jobs:
       NEXT_PUBLIC_WHATSAPP_URL: https://wa.me/message/PIQJ7XBLTNLWO1
       NEXT_PUBLIC_TELEGRAM_URL: https://t.me/AstroConsuPR
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: astroconsu
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres -d astroconsu"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Install
         run: npm install
 
       - name: Prisma validate
@@ -59,8 +36,11 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate
 
-      - name: TypeScript check
+      - name: TypeScript
         run: npm run typecheck
 
-      - name: Production build
+      - name: Tests
+        run: npm test
+
+      - name: Build
         run: npm run build
