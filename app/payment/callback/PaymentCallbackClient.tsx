@@ -18,21 +18,30 @@ export default function PaymentCallbackClient() {
       return;
     }
 
+    // On crée une constante locale après la vérification.
+    // TypeScript sait alors avec certitude qu'il s'agit d'une string.
+    const id = consultationId;
+
     let active = true;
 
     async function check() {
       const res = await fetch(
-        `/api/payments/status?consultationId=${encodeURIComponent(consultationId)}`,
+        `/api/payments/status?consultationId=${encodeURIComponent(id)}`,
         { cache: "no-store" }
       );
 
-      if (!res.ok) throw new Error("PAYMENT_STATUS_REQUEST_FAILED");
+      if (!res.ok) {
+        throw new Error("PAYMENT_STATUS_REQUEST_FAILED");
+      }
 
       const json = await res.json();
+
       if (!active) return;
 
       if (json.payment?.status === "SUCCESS") {
-        setStatus("Paiement confirmé. Votre consultation est maintenant payée.");
+        setStatus(
+          "Paiement confirmé. Votre consultation est maintenant payée."
+        );
       } else if (json.payment?.status === "FAILED") {
         setStatus("Le paiement n'a pas été confirmé.");
       } else {
@@ -43,7 +52,9 @@ export default function PaymentCallbackClient() {
     }
 
     check().catch(() => {
-      if (active) setStatus("Impossible de vérifier le paiement pour le moment.");
+      if (active) {
+        setStatus("Impossible de vérifier le paiement pour le moment.");
+      }
     });
 
     const timer = window.setInterval(() => {
@@ -59,11 +70,14 @@ export default function PaymentCallbackClient() {
   return (
     <div className="page narrow">
       <span className="eyebrow">💳 RETOUR PAIEMENT</span>
+
       <h1>{status}</h1>
+
       <p>
         La validation définitive est basée sur la notification sécurisée du
         prestataire, pas uniquement sur les paramètres de l’URL.
       </p>
+
       <Link href="/dashboard" className="button primary">
         Retour à mon espace
       </Link>
