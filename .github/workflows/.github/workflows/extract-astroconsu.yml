@@ -1,124 +1,84 @@
-name: Extract AstroConsu V17.3
+"use client";
 
-on:
-  workflow_dispatch:
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-permissions:
-  contents: write
-  workflows: write
+export default function PaymentCallbackClient() {
+  const [consultationId, setConsultationId] = useState<string | null>(null);
+  const [status, setStatus] = useState("Vérification du paiement...");
 
-jobs:
-  extract:
-    runs-on: ubuntu-latest
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("consultationId");
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
-          persist-credentials: true
-          fetch-depth: 0
+    setConsultationId(id);
+  }, []);
 
-      - name: Verify ZIP
-        run: |
-          echo "=== ZIP disponibles ==="
-          ls -lah *.zip || true
+  useEffect(() => {
+    if (consultationId === null) {
+      setStatus("Consultation introuvable.");
+      return;
+    }
 
-          test -f astroconsu-v17.3-buildfix.zip
+    let active = true;
 
-      - name: Clean previous AstroConsu source
-        run: |
-          echo "Suppression de l'ancien code..."
+    async function check(id: string) {
+      const res = await fetch(
+        `/api/payments/status?consultationId=${encodeURIComponent(id)}`,
+        { cache: "no-store" }
+      );
 
-          rm -rf app
-          rm -rf components
-          rm -rf lib
-          rm -rf prisma
-          rm -rf public
-          rm -rf tests
+      if (!res.ok) {
+        throw new Error("PAYMENT_STATUS_REQUEST_FAILED");
+      }
 
-          rm -f package.json
-          rm -f package-lock.json
-          rm -f tsconfig.json
-          rm -f next.config.ts
-          rm -f next.config.js
-          rm -f next-env.d.ts
-          rm -f middleware.ts
-          rm -f vitest.config.ts
+      const json = await res.json();
 
-      - name: Extract V17.3 into temporary directory
-        run: |
-          rm -rf astroconsu-extracted
-          mkdir -p astroconsu-extracted
+      if (!active) return;
 
-          unzip -o astroconsu-v17.3-buildfix.zip \
-            -d astroconsu-extracted
+      if (json.payment?.status === "SUCCESS") {
+        setStatus(
+          "Paiement confirmé. Votre consultation est maintenant payée."
+        );
+      } else if (json.payment?.status === "FAILED") {
+        setStatus("Le paiement n'a pas été confirmé.");
+      } else {
+        setStatus(
+          "Paiement reçu ou encore en traitement. La confirmation peut prendre quelques instants."
+        );
+      }
+    }
 
-      - name: Install AstroConsu files
-        run: |
-          echo "Installation de V17.3..."
+    check(consultationId).catch(() => {
+      if (active) {
+        setStatus("Impossible de vérifier le paiement pour le moment.");
+      }
+    });
 
-          cp -a astroconsu-extracted/. .
+    const timer = window.setInterval(() => {
+      check(consultationId).catch(() => undefined);
+    }, 5000);
 
-          rm -rf astroconsu-extracted
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [consultationId]);
 
-      - name: Remove ZIP archives from repository
-        run: |
-          rm -f astroconsu-v17-cosmic-pro.zip
-          rm -f astroconsu-v17-typescript-fixed.zip
-          rm -f astroconsu-v17.1-final.zip
-          rm -f astroconsu-v17.2-buildfix.zip
-          rm -f astroconsu-v17.3-buildfix.zip
+  return (
+    <div className="page narrow">
+      <span className="eyebrow">💳 RETOUR PAIEMENT</span>
 
-      - name: Verify payment callback source
-        run: |
-          echo "=== Vérification payment/callback ==="
+      <h1>{status}</h1>
 
-          test -f app/payment/callback/page.tsx
-          test -f app/payment/callback/PaymentCallbackClient.tsx
+      <p>
+        La validation définitive est basée sur la notification sécurisée du
+        prestataire, pas uniquement sur les paramètres de l’URL.
+      </p>
 
-          echo ""
-          echo "=== page.tsx ==="
-          cat app/payment/callback/page.tsx
-
-          echo ""
-          echo "=== PaymentCallbackClient.tsx ==="
-          cat app/payment/callback/PaymentCallbackClient.tsx
-
-          echo ""
-          echo "=== Recherche de useSearchParams ==="
-
-          if grep -R "useSearchParams" app/payment/callback; then
-            echo "ERREUR: useSearchParams existe encore dans payment/callback"
-            exit 1
-          fi
-
-          echo "OK: aucun useSearchParams dans payment/callback."
-
-      - name: Verify project files
-        run: |
-          echo "=== package.json ==="
-          test -f package.json
-          cat package.json
-
-          echo ""
-          echo "=== Git status ==="
-          git status --short
-
-      - name: Commit AstroConsu V17.3
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "Aucun changement à envoyer."
-            exit 0
-          fi
-
-          git commit -m "Install AstroConsu V17.3 build fix"
-
-      - name: Push AstroConsu V17.3
-        run: |
-          git push origin HEAD:main
+      <Link href="/dashboard" className="button primary">
+        Retour à mon espace
+      </Link>
+    </div>
+  );
+}
