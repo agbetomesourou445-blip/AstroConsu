@@ -3,16 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export default function PaymentCallbackClient() {
-  const [consultationId, setConsultationId] = useState<string | null>(null);
+interface PaymentCallbackClientProps {
+  consultationId: string | null;
+}
+
+export default function PaymentCallbackClient({
+  consultationId,
+}: PaymentCallbackClientProps) {
   const [status, setStatus] = useState("Vérification du paiement...");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("consultationId");
-
-    setConsultationId(id);
-  }, []);
 
   useEffect(() => {
     if (consultationId === null) {
