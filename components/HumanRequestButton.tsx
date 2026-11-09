@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 
 export function HumanRequestButton({ consultationId }: { consultationId: number }) {
@@ -13,6 +14,7 @@ export function HumanRequestButton({ consultationId }: { consultationId: number 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consultationId }),
       });
+
       if (response.ok) setDone(true);
     } finally {
       setLoading(false);

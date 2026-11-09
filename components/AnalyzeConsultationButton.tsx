@@ -11,22 +11,26 @@ export function AnalyzeConsultationButton({ consultationId }: { consultationId: 
     setLoading(true);
     setMessage("");
     setError(false);
+
     try {
       const response = await fetch("/api/consultations/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consultationId }),
       });
+
       const data = await response.json();
+
       if (!response.ok) {
         setError(true);
-        setMessage(data.error ?? "La lecture n’a pas pu être préparée. Réessayez dans quelques instants.");
-      } else {
-        setMessage(data.analysis?.content ?? "Votre lecture est prête.");
+        setMessage(data.error ?? "La lecture n’a pas pu être préparée. Réessayez plus tard.");
+        return;
       }
+
+      setMessage(data.analysis?.content ?? "Votre lecture est prête.");
     } catch {
       setError(true);
-      setMessage("La lecture est momentanément indisponible. Vérifiez votre connexion puis réessayez.");
+      setMessage("La lecture est momentanément indisponible. Réessayez un peu plus tard.");
     } finally {
       setLoading(false);
     }
@@ -35,9 +39,13 @@ export function AnalyzeConsultationButton({ consultationId }: { consultationId: 
   return (
     <div className="reading-action">
       <button className="button secondary" onClick={run} disabled={loading}>
-        {loading ? <><span className="button-spinner" aria-hidden="true" /> Préparation de votre lecture…</> : "✦ Découvrir ma lecture"}
+        {loading ? <><span className="button-spinner" aria-hidden="true" /> Préparation de la lecture…</> : "✦ Découvrir ma lecture"}
       </button>
-      {message && <div className={`premium reading-result ${error ? "error" : ""}`} role={error ? "alert" : "status"}><p>{message}</p></div>}
+      {message && (
+        <div className={`premium reading-result ${error ? "error" : ""}`} role={error ? "alert" : "status"}>
+          <p>{message}</p>
+        </div>
+      )}
     </div>
   );
 }
