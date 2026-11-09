@@ -10,13 +10,14 @@ export default function PaymentCallbackClient({ consultationId }: { consultation
 
   useEffect(() => {
     if (!consultationId) return;
+    const id = consultationId;
 
     let active = true;
     let timer: number | undefined;
 
     async function check() {
       try {
-        const response = await fetch(`/api/payments/status?consultationId=${encodeURIComponent(consultationId)}`, { cache: "no-store" });
+        const response = await fetch(`/api/payments/status?consultationId=${encodeURIComponent(id)}`, { cache: "no-store" });
         if (!response.ok) throw new Error("PAYMENT_STATUS_REQUEST_FAILED");
         const data = await response.json();
         if (!active) return;
