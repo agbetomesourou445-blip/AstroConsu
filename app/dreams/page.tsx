@@ -1,10 +1,171 @@
 "use client";
+
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { ContactButtons } from "@/components/ContactButtons";
-type Dream={id:number;title:string|null;description:string;analyses:{id:number;title:string|null;content:string}[]};
-export default function DreamsPage(){const[dreams,setDreams]=useState<Dream[]>([]);const[msg,setMsg]=useState('');const[busy,setBusy]=useState(false);
-async function load(){const r=await fetch('/api/dreams',{cache:'no-store'});if(r.ok)setDreams((await r.json()).dreams)} useEffect(()=>{load()},[]);
-async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setMsg('');const data=Object.fromEntries(new FormData(e.currentTarget));const r=await fetch('/api/dreams',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json();if(!r.ok)return setMsg(d.error||'Connexion requise.');setMsg('Rêve enregistré.');e.currentTarget.reset();load()}
-async function analyze(id:number){setBusy(true);setMsg('Analyse IA en cours...');const r=await fetch('/api/dreams/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dreamId:id})});const d=await r.json();setBusy(false);setMsg(r.ok?'Analyse terminée.':(d.error||'Analyse impossible.'));if(r.ok)load()}
-return <div className="page narrow"><span className="eyebrow">🌙 RÊVES + IA</span><div className="page-heading-icon" aria-hidden="true">☾</div><h1>Comprendre vos rêves</h1><p>Enregistrez un rêve puis demandez une lecture symbolique assistée par IA.</p><form className="form-card" onSubmit={submit}><label>Titre<input name="title" /></label><label>Votre rêve<textarea name="description" rows={8} required /></label><label>Émotions<textarea name="emotions" rows={4}/></label><label>Contexte<textarea name="context" rows={4}/></label><button className="button primary">Enregistrer mon rêve</button>{msg&&<p>{msg}</p>}</form><section className="section"><h2>Mes rêves</h2>{dreams.map(d=><article className="card" key={d.id}><h3>{d.title||'Rêve sans titre'}</h3><p>{d.description.slice(0,300)}{d.description.length>300?'…':''}</p><button className="button secondary" onClick={()=>analyze(d.id)} disabled={busy}>{busy?'Analyse...':'✨ Analyser avec l’IA'}</button>{d.analyses.map(a=><div className="premium" key={a.id}><h4>{a.title}</h4><p>{a.content}</p></div>)}</article>)}</section><div className="premium"><h2>👤 Lecture humaine</h2><p>L’IA donne une piste de réflexion. Pour un accompagnement approfondi, contactez un consultant.</p><Link href="/consultations" className="button secondary">Voir les consultations</Link></div><ContactButtons/></div>}
+
+type Dream = {
+  id: number;
+  title: string | null;
+  description: string;
+  analyses: { id: number; title: string | null; content: string }[];
+};
+
+export default function DreamsPage() {
+  const [dreams, setDreams] = useState<Dream[]>([]);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const response = await fetch("/api/dreams", { cache: "no-store" });
+    if (response.ok) {
+      const data = await response.json();
+      setDreams(data.dreams ?? []);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+
+    setBusy(true);
+    try {
+      const response = await fetch("/api/dreams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: payload.title,
+          description: payload.description,
+          emotions: payload.emotions,
+          context: payload.context,
+          dreamDate: payload.dreamDate,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage(data.error ?? "Le rêve n’a pas pu être enregistré.");
+        return;
+      }
+      event.currentTarget.reset();
+      setMessage("Votre rêve a été enregistré. Vous pouvez maintenant demander une lecture symbolique.");
+      await load();
+    } catch {
+      setMessage("L’enregistrement est momentanément indisponible. Réessayez dans quelques instants.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function analyze(id: number) {
+    setBusy(true);
+    setMessage("Lecture symbolique en cours…");
+    try {
+      const response = await fetch("/api/dreams/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dreamId: id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage(data.error ?? "La lecture n’a pas pu être préparée.");
+        return;
+      }
+      setMessage("Votre lecture a été préparée avec succès.");
+      await load();
+    } catch {
+      setMessage("La lecture symbolique est temporairement indisponible.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="page narrow">
+      <section className="page-hero">
+        <span className="eyebrow">RÊVES · SYMBOLIQUE · RÉCIT</span>
+        <div className="page-heading-icon" aria-hidden="true">☾</div>
+        <h1>Comprendre le langage de vos rêves</h1>
+        <p className="lead">Les rêves peuvent refléter des émotions, des souvenirs, des tensions ou des questions de fond. Ici, ils sont explorés comme des éléments symboliques, non comme des messages immuables.</p>
+      </section>
+
+      <div className="notice-card"><strong>Une lecture ouverte</strong><p>Le rêve est abordé comme un matériau de réflexion. Il peut guider votre attention, sans imposer une interprétation unique.</p></div>
+
+      <form className="form-card dream-form" onSubmit={submit}>
+        <h2>Racontez votre rêve</h2>
+        <label>
+          Titre du rêve
+          <input name="title" type="text" placeholder="Ex. : Réveil au bord de la mer" maxLength={160} />
+        </label>
+        <label>
+          Description du rêve
+          <textarea name="description" rows={6} placeholder="Décrivez les images, les émotions et les éléments marquants…" required />
+        </label>
+        <label>
+          Émotions ressenties
+          <textarea name="emotions" rows={3} placeholder="Anxiété, sérénité, confusion…" />
+        </label>
+        <label>
+          Contexte ou éléments de vie
+          <textarea name="context" rows={3} placeholder="Ce qui se passe dans votre vie ou ce qui a précédé ce rêve…" />
+        </label>
+        <label>
+          Date du rêve
+          <input name="dreamDate" type="date" />
+        </label>
+        <button type="submit" className="button primary" disabled={busy}>
+          {busy ? "Enregistrement…" : "Enregistrer le rêve"}
+        </button>
+      </form>
+
+      {message && <div className="premium"><p>{message}</p></div>}
+
+      <section className="section-block">
+        <div className="section-intro">
+          <span className="eyebrow">VOS ENREGISTREMENTS</span>
+          <h2>Les rêves récents</h2>
+        </div>
+        {dreams.length === 0 ? (
+          <div className="empty-state">
+            <p>Aucun rêve enregistré pour le moment. Laissez votre récit s’écrire.</p>
+          </div>
+        ) : (
+          <div className="dream-list">
+            {dreams.map((dream) => (
+              <article className="card dream-card" key={dream.id}>
+                <div className="dream-topline">
+                  <span className="card-kicker">RÊVE</span>
+                  {dream.title && <h3>{dream.title}</h3>}
+                </div>
+                <p>{dream.description}</p>
+                {dream.analyses?.length ? (
+                  <div className="dream-analyses">
+                    {dream.analyses.map((analysis) => (
+                      <div className="analysis-item" key={analysis.id}>
+                        <strong>{analysis.title ?? "Lecture symbolique"}</strong>
+                        <p>{analysis.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <button type="button" className="button secondary" onClick={() => analyze(dream.id)}>
+                    Découvrir la lecture symbolique
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <ContactButtons />
+      <p className="disclaimer">Les interprétations de rêve sont proposées comme outils de réflexion. Elles ne remplacent ni un accompagnement humain, ni un conseil professionnel.</p>
+    </div>
+  );
+}

@@ -9,46 +9,102 @@ import { AnalyzeConsultationButton } from "@/components/AnalyzeConsultationButto
 import { HumanRequestButton } from "@/components/HumanRequestButton";
 import { Notifications } from "@/components/Notifications";
 
+const typeLabels: Record<string, string> = {
+  DREAM: "Rêve & symbolique",
+  PERSONAL: "Consultation personnelle",
+  TAROT: "Lecture tarot",
+  ASTROLOGY: "Thème astral",
+};
+
+const statusLabels: Record<string, string> = {
+  PENDING: "En attente de paiement",
+  PAID: "Paiement confirmé",
+  PROCESSING: "En cours de traitement",
+  COMPLETED: "Terminée",
+  CANCELLED: "Annulée",
+};
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const consultations = await prisma.consultation.findMany({
     where: { userId: user.id },
-    include: { payments: { orderBy: { createdAt: "desc" }, take: 1 } },
+    include: {
+      payments: { orderBy: { createdAt: "desc" }, take: 1 },
+      analyses: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
     orderBy: { createdAt: "desc" },
-    take: 10
+    take: 10,
   });
 
-  return <div className="page">
-    <Notifications />
-    <span className="eyebrow">👤 MON ESPACE</span>
-    <h1>Bonjour {user.name ?? user.email}</h1>
-    <p>Votre espace personnel AstroConsu.</p>
+  const paidCount = consultations.filter((item) => ["PAID", "PROCESSING", "COMPLETED"].includes(item.status)).length;
+  const pendingCount = consultations.filter((item) => item.status === "PENDING").length;
 
-    <div className="grid">
-      <Link className="card" href="/dreams"><div className="icon">🌙</div><h2>Mes rêves</h2><p>Enregistrer et consulter vos rêves.</p></Link>
-      <Link className="card" href="/consultations"><div className="icon">🔮</div><h2>Consultations</h2><p>Créer et suivre vos consultations.</p></Link>
-      <Link className="card" href="/tarot"><div className="icon">🃏</div><h2>Tarot</h2><p>Explorer vos tirages.</p></Link>
+  return (
+    <div className="page dashboard-page">
+      <div className="dashboard-topbar"><span className="eyebrow">VOTRE OBSERVATOIRE PERSONNEL</span><Notifications /></div>
+
+      <section className="dashboard-welcome">
+        <div>
+          <span className="card-kicker">BIENVENUE DANS VOTRE ESPACE</span>
+          <h1>Bonjour{user.name ? `, ${user.name}` : ""}</h1>
+          <p>Retrouvez ici vos consultations, leurs étapes et vos lectures personnelles.</p>
+        </div>
+        <Link href="/consultations" className="button primary">Nouvelle consultation <span aria-hidden="true">→</span></Link>
+      </section>
+
+      <section className="dashboard-overview" aria-label="Résumé du compte">
+        <article className="overview-card"><span className="overview-symbol" aria-hidden="true">✦</span><div><span className="card-kicker">CONSULTATIONS</span><strong>{consultations.length}</strong><span>sur cette page</span></div></article>
+        <article className="overview-card"><span className="overview-symbol" aria-hidden="true">◷</span><div><span className="card-kicker">EN ATTENTE</span><strong>{pendingCount}</strong><span>à finaliser</span></div></article>
+        <article className="overview-card"><span className="overview-symbol" aria-hidden="true">☾</span><div><span className="card-kicker">SUIVIES</span><strong>{paidCount}</strong><span>confirmées ou en cours</span></div></article>
+      </section>
+
+      <section className="section-block dashboard-shortcuts" aria-labelledby="shortcuts-title">
+        <div className="section-intro"><span className="eyebrow">RACCOURCIS</span><h2 id="shortcuts-title">Poursuivre votre exploration</h2></div>
+        <div className="grid">
+          <Link className="card dashboard-shortcut" href="/dreams"><span className="exploration-icon" aria-hidden="true">☾</span><h3>Mon carnet de rêves</h3><p>Enregistrer un récit et retrouver ses lectures.</p><span className="learn">Ouvrir le carnet →</span></Link>
+          <Link className="card dashboard-shortcut" href="/consultations"><span className="exploration-icon" aria-hidden="true">✦</span><h3>Mes consultations</h3><p>Créer une demande ou suivre un accompagnement.</p><span className="learn">Explorer →</span></Link>
+          <Link className="card dashboard-shortcut" href="/tarot"><span className="exploration-icon" aria-hidden="true">✧</span><h3>Les arcanes</h3><p>Découvrir les figures symboliques du tarot.</p><span className="learn">Découvrir →</span></Link>
+        </div>
+      </section>
+
+      <section className="section-block" aria-labelledby="consultations-title">
+        <div className="section-intro dashboard-list-heading"><div><span className="eyebrow">VOTRE PARCOURS</span><h2 id="consultations-title">Consultations récentes</h2></div><Link className="learn" href="/consultations">Nouvelle demande →</Link></div>
+        {consultations.length === 0 ? (
+          <div className="empty-state dashboard-empty"><span aria-hidden="true">✧</span><h3>Votre espace est prêt</h3><p>Quand vous créerez une consultation, son statut et son suivi apparaîtront ici.</p><Link href="/consultations" className="button primary">Créer ma première demande</Link></div>
+        ) : (
+          <div className="consultation-list">
+            {consultations.map((consultation) => {
+              const latestPayment = consultation.payments[0];
+              const latestAnalysis = consultation.analyses[0];
+              const status = consultation.status;
+              return (
+                <article className="card dashboard-consultation" key={consultation.id}>
+                  <div className="consultation-card-heading">
+                    <div><span className="card-kicker">DOSSIER · #{consultation.id}</span><h3>{typeLabels[consultation.type] ?? consultation.type}</h3></div>
+                    <span className={`status-pill status-${status.toLowerCase()}`}><span aria-hidden="true">●</span>{statusLabels[status] ?? status}</span>
+                  </div>
+                  <p className="consultation-summary">{consultation.subject || consultation.question.slice(0, 180)}{!consultation.subject && consultation.question.length > 180 ? "…" : ""}</p>
+                  <div className="consultation-meta"><strong>{Number(consultation.price).toLocaleString("fr-FR")} {consultation.currency}</strong><span>Créée le {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(consultation.createdAt)}</span></div>
+                  {latestPayment?.status === "PENDING" && <p className="inline-status">Le paiement est en attente de confirmation.</p>}
+                  {latestPayment?.status === "FAILED" && <p className="inline-status error">Le paiement précédent n’a pas été confirmé. Vous pouvez réessayer.</p>}
+                  <div className="consultation-actions">
+                    {status === "PENDING" && <PayButton consultationId={consultation.id} amount={Number(consultation.price)} />}
+                    {status === "PAID" && <AnalyzeConsultationButton consultationId={consultation.id} />}
+                    {status === "PAID" && <HumanRequestButton consultationId={consultation.id} />}
+                  </div>
+                  {latestAnalysis && <div className="saved-reading"><span className="card-kicker">VOTRE DERNIÈRE LECTURE</span><p>{latestAnalysis.content}</p></div>}
+                  {consultation.humanRequested && <p className="inline-status">Votre demande d’accompagnement humain a été transmise.</p>}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="dashboard-account-bar"><div><span className="card-kicker">COMPTE CONNECTÉ</span><p>{user.email}</p></div><LogoutButton /></section>
+      <section className="dashboard-contact"><h2>Besoin d’aide ?</h2><p>Notre équipe peut vous orienter pour la suite de votre parcours.</p><ContactButtons /></section>
     </div>
-
-    <section className="section">
-      <h2>Mes consultations</h2>
-      {consultations.length === 0 ? <p>Aucune consultation pour le moment.</p> : consultations.map((c) => {
-        const latest = c.payments[0];
-        return <div className="card" key={c.id}>
-          <h3>{c.type}</h3>
-          <p>{c.subject ?? c.question.slice(0, 140)}</p>
-          <p><strong>{Number(c.price).toLocaleString("fr-FR")} {c.currency}</strong> · {c.status}</p>
-          {c.status !== "PAID" && <PayButton consultationId={c.id} amount={Number(c.price)} />}
-          {c.status === "PAID" && <AnalyzeConsultationButton consultationId={c.id} />}
-          {c.status === "PAID" && <HumanRequestButton consultationId={c.id} />}
-          {latest?.status === "PENDING" && <small>Paiement en attente de confirmation.</small>}
-        </div>;
-      })}
-    </section>
-
-    <LogoutButton />
-    <ContactButtons />
-  </div>;
+  );
 }
